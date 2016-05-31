@@ -26,15 +26,15 @@
 
             cache[kOut + thid] = firstSummand + secondSummand;
 
-            printf("[T%d]: %d (cache[%d]) <- %d (cache[%d]) + %d (cache[%d])\n", thid, cache[kOut + thid], kOut + thid, firstSummand, kIn + thid, secondSummand, kIn + thid - offset);
+            //printf("[T%d]: %d (cache[%d]) <- %d (cache[%d]) + %d (cache[%d])\n", thid, cache[kOut + thid], kOut + thid, firstSummand, kIn + thid, secondSummand, kIn + thid - offset);
         } else {
             cache[kOut + thid] = cache[kIn + thid];
-            printf("[T%d]: cache[%d] = %d <- cache[%d]\n", thid, kOut + thid, cache[kIn + thid], kIn + thid);
+            //printf("[T%d]: cache[%d] = %d <- cache[%d]\n", thid, kOut + thid, cache[kIn + thid], kIn + thid);
         }
     }
 
     barrier(CLK_GLOBAL_MEM_FENCE);
 
-    printf("[T%d]: output[%d] = %d\n", thid, thid, cache[thid]);
+    //printf("[T%d]: output[%d] = %d\n", thid, thid, cache[thid]);
     output[thid] = cache[outIdx * n + thid];
 }
