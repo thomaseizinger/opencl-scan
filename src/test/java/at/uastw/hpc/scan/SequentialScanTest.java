@@ -2,8 +2,14 @@ package at.uastw.hpc.scan;
 
 import static org.junit.Assert.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -22,8 +28,5 @@ public class SequentialScanTest {
     @Test
     public void shouldAddElements() throws Exception {
 
-        final List<Integer> out = sut.sum(0, Arrays.asList(1, 2, 3));
-
-        assertThat(out, Matchers.hasItems( 0, 1, 3, 6 ));
     }
 }

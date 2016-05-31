@@ -1,9 +1,13 @@
 package at.uastw.hpc.scan.opencl;
 
+import java.util.stream.IntStream;
+
 import org.jocl.CL;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import at.uastw.hpc.scan.SequentialScan;
 
 public class OpenClScanTest {
 
@@ -18,8 +22,8 @@ public class OpenClScanTest {
     @Test
     public void openClSumScan() throws Exception {
 
-        final int[] source = {1, 2, 3, 4, 5};
-        final int[] expected = {0, 1, 3, 6, 10, 15};
+        final int[] source = IntStream.range(1, 4).toArray();
+        final int[] expected = new SequentialScan().sum(0, source);
 
         final int[] result = sut.sum(0, source);
 

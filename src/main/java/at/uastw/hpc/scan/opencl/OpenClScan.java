@@ -45,22 +45,28 @@ public class OpenClScan {
 
     public int[] sum(Integer identity, int[] source) {
 
+        int numberOfWorkItems = 4;
+        int numberOfWorkGroups = 2;
+
         final int[] metadata = new int[] { identity, source.length + 1 };
         final int[] result = new int[source.length + 1];
+        final int[] workGroupSums = new int[ numberOfWorkItems / numberOfWorkGroups ];
 
         try (CLContext context = device.createContext()) {
             try (CLKernel scanSum = context.createKernel(new File(kernelURI), "scanSum")) {
 
                 final CLMemory<int[]> inBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, source);
                 final CLMemory<int[]> outBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, result);
+                final CLMemory<int[]> workGroupSumsBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, workGroupSums);
                 final CLMemory<int[]> metBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, metadata);
 
-                scanSum.setArguments(inBuffer, outBuffer, metBuffer);
-                CL.clSetKernelArg(scanSum.getKernel(), 3, source.length * Sizeof.cl_int, new Pointer());
+                scanSum.setArguments(inBuffer, outBuffer, workGroupSumsBuffer, metBuffer);
+                CL.clSetKernelArg(scanSum.getKernel(), 4, source.length * Sizeof.cl_int, new Pointer());
 
                 final CLCommandQueue commandQueue = context.createCommandQueue();
+                commandQueue.execute(scanSum, 1, CLRange.of(numberOfWorkItems), CLRange.of(numberOfWorkItems / numberOfWorkGroups));
 
-                commandQueue.execute(scanSum, 1, CLRange.of(result.length), CLRange.of(result.length));
+
                 commandQueue.readBuffer(outBuffer);
                 commandQueue.finish();
 
