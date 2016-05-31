@@ -1,24 +1,40 @@
-#define SWAP(a,b) {__local float *tmp=a;a=b;b=tmp;}
+ __kernel void scanSum(__global int * input, __global int * output, __global int * metadata, __local int * cache) {
 
-__kernel void sumScan(__global int *a, __global int *r, __local int *b, __local int *c) {
+    const int I = metadata[0];
+    const int n = metadata[1];
 
-}
-    uint gid = get_global_id(0);
-    uint lid = get_local_id(0);
-    uint gs = get_local_size(0);
- 
-    c[lid] = b[lid] = a[gid];
-    barrier(CLK_LOCAL_MEM_FENCE);
- 
-    for(uint s = 1; s < gs; s <<= 1) {
-        if(lid > (s-1)) {
-            c[lid] = b[lid]+b[lid-s];
+    const int thid = get_local_id(0);
+    int outIdx = 0, inIdx = 1;
+
+    cache[thid] = (thid > 0) ? input[thid - 1] : I;
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
+    //printf("cache[%d] = %d\n", thid, cache[thid]);
+
+    for (int offset = 1; offset < n; offset *= 2) {
+
+        outIdx = 1 - outIdx;
+        inIdx = 1 - inIdx;
+
+        const int kOut = outIdx * n;
+        const int kIn = inIdx * n;
+
+        if (thid >= offset) {
+
+            const int firstSummand = cache[kIn + thid];
+            const int secondSummand = cache[kIn + thid - offset];
+
+            cache[kOut + thid] = firstSummand + secondSummand;
+
+            printf("[T%d]: %d (cache[%d]) <- %d (cache[%d]) + %d (cache[%d])\n", thid, cache[kOut + thid], kOut + thid, firstSummand, kIn + thid, secondSummand, kIn + thid - offset);
         } else {
-            c[lid] = b[lid];
+            cache[kOut + thid] = cache[kIn + thid];
+            printf("[T%d]: cache[%d] = %d <- cache[%d]\n", thid, kOut + thid, cache[kIn + thid], kIn + thid);
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
-        SWAP(b,c);
     }
 
-    r[gid] = b[lid];
+    barrier(CLK_GLOBAL_MEM_FENCE);
+
+    printf("[T%d]: output[%d] = %d\n", thid, thid, cache[thid]);
+    output[thid] = cache[outIdx * n + thid];
 }

@@ -45,27 +45,26 @@ public class OpenClScan {
 
     public int[] sum(Integer identity, int[] source) {
 
-        final int[] metadata = new int[] { identity, source.length };
-        final int[] result = new int[source.length];
+        final int[] metadata = new int[] { identity, source.length + 1 };
+        final int[] result = new int[source.length + 1];
 
         try (CLContext context = device.createContext()) {
             try (CLKernel scanSum = context.createKernel(new File(kernelURI), "scanSum")) {
 
-                final cl_mem mem_Metadata = CL.clCreateBuffer(context.getContext(), CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, Sizeof.cl_int * metadata.length, Pointer.to(metadata), null);
-                final cl_mem mem_Source = CL.clCreateBuffer(context.getContext(), CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, Sizeof.cl_int * source.length, Pointer.to(source), null);
-                final cl_mem mem_Result = CL.clCreateBuffer(context.getContext(), CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, Sizeof.cl_int * result.length, Pointer.to(result), null);
+                final CLMemory<int[]> inBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, source);
+                final CLMemory<int[]> outBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, result);
+                final CLMemory<int[]> metBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, metadata);
 
-                CL.clSetKernelArg(scanSum.getKernel(), 0, Sizeof.cl_mem, Pointer.to(mem_Metadata));
-                CL.clSetKernelArg(scanSum.getKernel(), 1, Sizeof.cl_mem, Pointer.to(mem_Source));
-                CL.clSetKernelArg(scanSum.getKernel(), 2, Sizeof.cl_mem, Pointer.to(mem_Result));
-                CL.clSetKernelArg(scanSum.getKernel(), 3, Sizeof.cl_mem, new Pointer());
+                scanSum.setArguments(inBuffer, outBuffer, metBuffer);
+                CL.clSetKernelArg(scanSum.getKernel(), 3, source.length * Sizeof.cl_int, new Pointer());
 
                 final CLCommandQueue commandQueue = context.createCommandQueue();
 
-                commandQueue.execute(scanSum, 1, CLRange.of(source.length), CLRange.of(1, 1));
+                commandQueue.execute(scanSum, 1, CLRange.of(result.length), CLRange.of(result.length));
+                commandQueue.readBuffer(outBuffer);
                 commandQueue.finish();
 
-                return new int[] { };
+                return outBuffer.getData();
             }
         }
     }
