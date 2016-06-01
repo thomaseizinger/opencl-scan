@@ -1,7 +1,6 @@
- __kernel void scanSum(__global int * input, __global int * output, __global int * workGroupSums, __global int * metadata, __local int * cache) {
+ __kernel void scanSum(__global int * input, __global int * output, __global int * workGroupSums, __local int * cache) {
 
-    const int I = metadata[0];
-    const int n = metadata[1];
+    const int n = get_local_size(0);
 
     const int groupId = get_group_id(0);
     const int workGroupSize = get_local_size(0);
@@ -13,7 +12,7 @@
 
     int outIdx = 0, inIdx = 1;
 
-    cache[localThreadId] = (globalThreadId == 0) ? I : input[globalOffset + localThreadId - 1];
+    cache[localThreadId] = (globalThreadId == 0) ? 0 : input[globalOffset + localThreadId - 1];
     barrier(CLK_GLOBAL_MEM_FENCE);
 
     printf("[%d] [%d] [%d]: cache[%d] = %d\n", groupId, globalThreadId, localThreadId, localThreadId, cache[localThreadId]);
@@ -44,6 +43,8 @@
 
     printf("[G%d] [T%d]: output[%d] = %d\n", groupId, localThreadId, localThreadId, cache[localThreadId]);
     //output[localThreadId] = cache[outIdx * n + localThreadId];
+
+    output[globalOffset + localThreadId] = cache[localThreadId];
 
     if (localThreadId == workGroupSize - 1) {
         workGroupSums[groupId] = cache[localThreadId];
