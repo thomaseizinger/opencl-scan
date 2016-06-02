@@ -1,10 +1,8 @@
 package at.uastw.hpc.scan.opencl;
 
 import static org.jocl.CL.CL_MEM_COPY_HOST_PTR;
-import static org.jocl.CL.CL_MEM_READ_ONLY;
 import static org.jocl.CL.CL_MEM_READ_WRITE;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -21,13 +19,15 @@ import com.github.thomaseizinger.oocl.CLRange;
 import org.jocl.CL;
 import org.jocl.Pointer;
 import org.jocl.Sizeof;
-import org.jocl.cl_mem;
 
 public class OpenClScan {
 
     private final CLDevice device;
 
     private final URI kernelURI;
+    private static final int LOCAL_SIZE = 512;
+    private static final int NUMBER_OF_WORK_GROUPS = 256;
+    private static final int NUMBER_OF_WORK_ITEMS = LOCAL_SIZE * NUMBER_OF_WORK_GROUPS;
 
     private OpenClScan(CLDevice device, URI kernelURI) {
         this.device = device;
@@ -46,6 +46,10 @@ public class OpenClScan {
 
     public int[] sum(int[] source) {
 
+        if (source.length > NUMBER_OF_WORK_ITEMS) {
+            throw new IllegalArgumentException("Source array is too long");
+        }
+
         final int nextPowerOf2Length = 32 - Integer.numberOfLeadingZeros(source.length - 1);
         final int desiredLength = (int) Math.pow(2, nextPowerOf2Length);
 
@@ -57,13 +61,9 @@ public class OpenClScan {
     }
 
     private int[] sumInternal(int[] source) {
-        int localSize = 512;
-        int numberOfWorkGroups = 256;
-
-        int numberOfWorkItems = localSize * numberOfWorkGroups;
 
         final int[] result = new int[source.length + 1];
-        final int[] workGroupSums = new int[ localSize ];
+        final int[] workGroupSums = new int[LOCAL_SIZE];
 
         try (CLContext context = device.createContext()) {
             try (CLKernel scanSum = context.createKernel(new File(kernelURI), "scanSum")) {
@@ -75,21 +75,22 @@ public class OpenClScan {
                 final CLCommandQueue commandQueue = context.createCommandQueue();
 
                 scanSum.setArguments(inBuffer, resultBuffer, workGroupSumsBuffer);
-                CL.clSetKernelArg(scanSum.getKernel(), 3, localSize * 2 * Sizeof.cl_int, new Pointer());
+                CL.clSetKernelArg(scanSum.getKernel(), 3, LOCAL_SIZE * 2 * Sizeof.cl_int, new Pointer());
 
-                commandQueue.execute(scanSum, 1, CLRange.of(numberOfWorkItems), CLRange.of(localSize));
+                commandQueue.execute(scanSum, 1, CLRange.of(NUMBER_OF_WORK_ITEMS), CLRange.of(LOCAL_SIZE));
 
-                final CLMemory<int[]> scannedWorkGroupMaxBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, new int[numberOfWorkGroups]);
+                final CLMemory<int[]> scannedWorkGroupMaxBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, new int[NUMBER_OF_WORK_GROUPS]);
 
                 scanSum.setArguments(workGroupSumsBuffer, scannedWorkGroupMaxBuffer, workGroupSumsBuffer);
-                CL.clSetKernelArg(scanSum.getKernel(), 3, numberOfWorkGroups * Sizeof.cl_int, new Pointer());
+                CL.clSetKernelArg(scanSum.getKernel(), 3, NUMBER_OF_WORK_GROUPS * Sizeof.cl_int, new Pointer());
 
-                commandQueue.execute(scanSum, 1, CLRange.of(numberOfWorkGroups + 1), CLRange.of(numberOfWorkGroups + 1));
+                commandQueue.execute(scanSum, 1, CLRange.of(NUMBER_OF_WORK_GROUPS + 1), CLRange.of(NUMBER_OF_WORK_GROUPS + 1));
 
                 try (CLKernel finalizeScan = context.createKernel(new File(kernelURI), "finalizeScan")) {
 
                     finalizeScan.setArguments(scannedWorkGroupMaxBuffer, resultBuffer);
-                    commandQueue.execute(finalizeScan, 1, CLRange.of(numberOfWorkItems), CLRange.of(numberOfWorkItems / numberOfWorkGroups));
+                    commandQueue.execute(finalizeScan, 1, CLRange.of(NUMBER_OF_WORK_ITEMS), CLRange.of(NUMBER_OF_WORK_ITEMS
+                            / NUMBER_OF_WORK_GROUPS));
                 }
 
                 commandQueue.readBuffer(resultBuffer);
