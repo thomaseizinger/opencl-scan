@@ -126,6 +126,7 @@
 
 __kernel void finalizeScan(__global int * workGroupSums, __global int * otherSums) {
 
+    const int globalThreadId = get_global_id(0);
     const int groupId = get_group_id(0);
     const int workGroupSize = get_local_size(0) * 2;
     const int localThreadId = get_local_id(0);
@@ -137,15 +138,21 @@ __kernel void finalizeScan(__global int * workGroupSums, __global int * otherSum
 
     if (groupId > 0) {
 
-        #if DEBUG
-        printf("%d: [GR%.2d] [LT%.2d]: otherSums[%d] = otherSums[%d] (%d) + workGroupSums[%d] (%d)\n", __LINE__, groupId, localThreadId, globalOffset + localThreadId, globalOffset + localThreadId, otherSums[globalOffset + localThreadId], groupId - 1, workGroupSums[groupId - 1]);
+        #if TRACE
+        printf("%d: [GR%.2d] [LT%.2d]: otherSums[%d] = otherSums[%d] (%d) + workGroupSums[%d] (%d)\n", __LINE__, groupId, localThreadId, globalOffset + firstLocalThreadId, globalOffset + firstLocalThreadId, otherSums[globalOffset + firstLocalThreadId], groupId - 1, workGroupSums[groupId - 1]);
+        printf("%d: [GR%.2d] [LT%.2d]: otherSums[%d] = otherSums[%d] (%d) + workGroupSums[%d] (%d)\n", __LINE__, groupId, localThreadId, globalOffset + secondLocalThreadId, globalOffset + secondLocalThreadId, otherSums[globalOffset + secondLocalThreadId], groupId - 1, workGroupSums[groupId - 1]);
         #endif
 
         otherSums[globalOffset + firstLocalThreadId] = otherSums[globalOffset + firstLocalThreadId] + workGroupSums[groupId - 1];
         otherSums[globalOffset + secondLocalThreadId] = otherSums[globalOffset + secondLocalThreadId] + workGroupSums[groupId - 1];
     } else {
-        #if DEBUG
+        #if TRACE
         printf("%d: [GR%.2d] [LT%.2d]: otherSums[%d] = %d\n", __LINE__, groupId, localThreadId, globalOffset + firstLocalThreadId, otherSums[globalOffset + firstLocalThreadId]);
         #endif
     }
+
+    #if DEBUG
+    printf("%d: [GR%.2d] [LT%.2d]: otherSums[%d] = %d\n", __LINE__, groupId, localThreadId, globalOffset + firstLocalThreadId, otherSums[globalOffset + firstLocalThreadId]);
+    printf("%d: [GR%.2d] [LT%.2d]: otherSums[%d] = %d\n", __LINE__, groupId, localThreadId, globalOffset + secondLocalThreadId, otherSums[globalOffset + secondLocalThreadId]);
+    #endif
 }
