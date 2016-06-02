@@ -9,19 +9,22 @@
     const int workGroupSize = get_local_size(0) * 2;
 
     const int globalThreadId = get_global_id(0);
+
     const int localThreadId = get_local_id(0);
+    const int firstLocalThreadId = 2 * localThreadId;
+    const int secondLocalThreadId = 2 * localThreadId + 1;
 
     const int globalOffset = groupId * workGroupSize;
 
     int outIdx = 0, inIdx = 1;
 
-    cache[2 * localThreadId] = input[globalOffset + 2 * localThreadId];
-    cache[2 * localThreadId + 1] = input[globalOffset + 2 * localThreadId + 1];
+    cache[firstLocalThreadId] = input[globalOffset + firstLocalThreadId];
+    cache[secondLocalThreadId] = input[globalOffset + secondLocalThreadId];
     barrier(CLK_GLOBAL_MEM_FENCE);
 
     #if DEBUG
-    printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: cache[%d] = %d\n", __LINE__, groupId, globalThreadId, localThreadId, 2 * localThreadId, cache[2 * localThreadId]);
-    printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: cache[%d] = %d\n", __LINE__, groupId, globalThreadId, localThreadId, 2 * localThreadId + 1, cache[2 * localThreadId + 1]);
+    printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: cache[%d] = %d\n", __LINE__, groupId, globalThreadId, localThreadId, firstLocalThreadId, cache[firstLocalThreadId]);
+    printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: cache[%d] = %d\n", __LINE__, groupId, globalThreadId, localThreadId, secondLocalThreadId, cache[secondLocalThreadId]);
     #endif
 
     int offset = 1;
@@ -32,8 +35,8 @@
 
         if (localThreadId < depth) {
 
-            const int firstIndex = offset * ( 2 * localThreadId + 1 ) - 1;
-            const int secondIndex = offset * ( 2 * localThreadId + 2 ) - 1;
+            const int firstIndex = offset * ( firstLocalThreadId + 1 ) - 1;
+            const int secondIndex = offset * ( secondLocalThreadId + 1 ) - 1;
 
             const int valueAtFirstIndex = cache[firstIndex];
             const int valueAtSecondIndex = cache[secondIndex];
@@ -84,8 +87,8 @@
         barrier(CLK_GLOBAL_MEM_FENCE);
 
         if (localThreadId < depth) {
-            const int firstIndex = offset * ( 2 * localThreadId + 1 ) - 1;
-            const int secondIndex = offset * ( 2 * localThreadId + 2 ) - 1;
+            const int firstIndex = offset * ( firstLocalThreadId + 1 ) - 1;
+            const int secondIndex = offset * ( secondLocalThreadId + 1 ) - 1;
 
             const int valueAtFirstIndex = cache[firstIndex];
             const int valueAtSecondIndex = cache[secondIndex];
@@ -103,11 +106,11 @@
         barrier(CLK_GLOBAL_MEM_FENCE);
     }
 
-    const int firstIndexOfOutput = globalOffset + 2 * localThreadId;
-    const int secondIndexOfOutput = globalOffset + 2 * localThreadId + 1;
+    const int firstIndexOfOutput = globalOffset + firstLocalThreadId;
+    const int secondIndexOfOutput = globalOffset + secondLocalThreadId;
 
-    const int indexOfCacheValueToWriteToFirstIndexOfOutput = 2 * localThreadId + 1;
-    const int indexOfCacheValueToWriteToSecondIndexOfOutput = 2 * localThreadId + 2;
+    const int indexOfCacheValueToWriteToFirstIndexOfOutput = firstLocalThreadId + 1;
+    const int indexOfCacheValueToWriteToSecondIndexOfOutput = secondLocalThreadId + 1;
 
     const int cacheValueToWriteToFirstIndex = cache[indexOfCacheValueToWriteToFirstIndexOfOutput];
     const int cacheValueToWriteToSecondIndex = cache[indexOfCacheValueToWriteToSecondIndexOfOutput];
