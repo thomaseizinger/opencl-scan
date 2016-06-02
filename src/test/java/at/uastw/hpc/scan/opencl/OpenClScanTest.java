@@ -22,7 +22,7 @@ public class OpenClScanTest {
     @Test
     public void openClSumScan() throws Exception {
 
-        final int[] source = IntStream.range(1, 64).toArray();
+        final int[] source = IntStream.range(1, 512 * 256).toArray();
         final int[] expected = new SequentialScan().sum(0, source);
 
         final int[] result = sut.sum(source);

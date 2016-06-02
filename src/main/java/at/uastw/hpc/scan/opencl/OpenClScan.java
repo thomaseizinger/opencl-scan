@@ -45,8 +45,8 @@ public class OpenClScan {
 
     public int[] sum(int[] source) {
 
-        int localSize = 8;
-        int numberOfWorkGroups = 8;
+        int localSize = 512;
+        int numberOfWorkGroups = 256;
 
         int numberOfWorkItems = localSize * numberOfWorkGroups;
 
@@ -74,7 +74,7 @@ public class OpenClScan {
 
                 commandQueue.execute(scanSum, 1, CLRange.of(numberOfWorkGroups + 1), CLRange.of(numberOfWorkGroups + 1));
 
-                try (CLKernel finalizeScan = context.createKernel(new File(getKernelURI("/opencl_sum_scan_finalize.cl")), "finalizeScan")) {
+                try (CLKernel finalizeScan = context.createKernel(new File(kernelURI), "finalizeScan")) {
 
                     finalizeScan.setArguments(scannedWorkGroupMaxBuffer, resultBuffer);
                     commandQueue.execute(finalizeScan, 1, CLRange.of(source.length + 1), CLRange.of(numberOfWorkItems / numberOfWorkGroups));
