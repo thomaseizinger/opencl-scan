@@ -1,19 +1,16 @@
 package at.uastw.hpc.scan;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 public class SequentialScan {
 
-    public int[] sum(Integer identity, int[] source) {
+    public int[] sum(int[] source) {
 
-        final List<Integer> out = new ArrayList<>(Collections.singletonList(identity));
+        final int[] out = new int[source.length];
+        out[0] = source[0];
 
-        for (int i = 1; i < source.length + 1; i++) {
-            out.add(i, out.get(i - 1) + source[i - 1]);
+        for (int i = 1; i < source.length; i++) {
+            out[i] = out[i - 1] + source[i];
         }
 
-        return out.stream().mapToInt(i -> i).toArray();
+        return out;
     }
 }

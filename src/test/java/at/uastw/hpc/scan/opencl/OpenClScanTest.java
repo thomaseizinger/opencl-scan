@@ -23,12 +23,12 @@ public class OpenClScanTest {
     @Test
     public void openClSumScan() throws Exception {
 
-        final int[] source = IntStream.range(1, 12414).toArray();
-        final int[] expected = new SequentialScan().sum(0, source);
+        final int[] source = IntStream.range(1, 13).toArray();
+        final int[] expected = new SequentialScan().sum(source);
 
         final int[] result = sut.sum(source);
 
-        final int[] trimmedResult = Arrays.stream(result).limit(source.length + 1).toArray();
+        final int[] trimmedResult = Arrays.stream(result).limit(source.length).toArray();
 
         Assert.assertArrayEquals(expected, trimmedResult);
     }

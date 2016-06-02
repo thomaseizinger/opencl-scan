@@ -14,7 +14,7 @@
 
     int outIdx = 0, inIdx = 1;
 
-    cache[localThreadId] = (globalThreadId == 0) ? 0 : input[globalOffset + localThreadId - 1];
+    cache[localThreadId] = input[globalOffset + localThreadId];
     barrier(CLK_GLOBAL_MEM_FENCE);
 
     #if DEBUG
@@ -81,5 +81,16 @@ __kernel void finalizeScan(__global int * workGroupSums, __global int * otherSum
 
     const int globalOffset = groupId * workGroupSize;
 
-    otherSums[globalOffset + localThreadId] = workGroupSums[groupId] + otherSums[globalOffset + localThreadId];
+    if (groupId > 0) {
+
+        #if DEBUG
+        printf("%d: [GR%.2d] [LT%.2d]: otherSums[%d] = otherSums[%d] (%d) + workGroupSums[%d] (%d)\n", __LINE__, groupId, localThreadId, globalOffset + localThreadId, globalOffset + localThreadId, otherSums[globalOffset + localThreadId], groupId - 1, workGroupSums[groupId - 1]);
+        #endif
+
+        otherSums[globalOffset + localThreadId] = otherSums[globalOffset + localThreadId] + workGroupSums[groupId - 1];
+    } else {
+        #if DEBUG
+        printf("%d: [GR%.2d] [LT%.2d]: otherSums[%d] = %d\n", __LINE__, groupId, localThreadId, globalOffset + localThreadId, otherSums[globalOffset + localThreadId]);
+        #endif
+    }
 }

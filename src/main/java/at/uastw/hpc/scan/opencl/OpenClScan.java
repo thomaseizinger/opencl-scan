@@ -25,8 +25,8 @@ public class OpenClScan {
     private final CLDevice device;
 
     private final URI kernelURI;
-    private static final int LOCAL_SIZE = 512;
-    private static final int NUMBER_OF_WORK_GROUPS = 256;
+    private static final int LOCAL_SIZE = 8;
+    private static final int NUMBER_OF_WORK_GROUPS = 2;
     private static final int NUMBER_OF_WORK_ITEMS = LOCAL_SIZE * NUMBER_OF_WORK_GROUPS;
 
     private OpenClScan(CLDevice device, URI kernelURI) {
@@ -84,13 +84,12 @@ public class OpenClScan {
                 scanSum.setArguments(workGroupSumsBuffer, scannedWorkGroupMaxBuffer, workGroupSumsBuffer);
                 CL.clSetKernelArg(scanSum.getKernel(), 3, NUMBER_OF_WORK_GROUPS * Sizeof.cl_int, new Pointer());
 
-                commandQueue.execute(scanSum, 1, CLRange.of(NUMBER_OF_WORK_GROUPS + 1), CLRange.of(NUMBER_OF_WORK_GROUPS + 1));
+                commandQueue.execute(scanSum, 1, CLRange.of(NUMBER_OF_WORK_GROUPS), CLRange.of(NUMBER_OF_WORK_GROUPS));
 
                 try (CLKernel finalizeScan = context.createKernel(new File(kernelURI), "finalizeScan")) {
 
                     finalizeScan.setArguments(scannedWorkGroupMaxBuffer, resultBuffer);
-                    commandQueue.execute(finalizeScan, 1, CLRange.of(NUMBER_OF_WORK_ITEMS), CLRange.of(NUMBER_OF_WORK_ITEMS
-                            / NUMBER_OF_WORK_GROUPS));
+                    commandQueue.execute(finalizeScan, 1, CLRange.of(NUMBER_OF_WORK_ITEMS), CLRange.of(NUMBER_OF_WORK_ITEMS / NUMBER_OF_WORK_GROUPS));
                 }
 
                 commandQueue.readBuffer(resultBuffer);
