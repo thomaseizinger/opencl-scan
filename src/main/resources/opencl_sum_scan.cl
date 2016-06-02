@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #define TRACE 0
 
  __kernel void scanSum(__global int * input, __global int * output, __global int * workGroupSums, __local int * cache) {
@@ -90,21 +90,26 @@
             const int firstIndex = offset * ( firstLocalThreadId + 1 ) - 1;
             const int secondIndex = offset * ( secondLocalThreadId + 1 ) - 1;
 
-            const int valueAtFirstIndex = cache[firstIndex];
-            const int valueAtSecondIndex = cache[secondIndex];
-            const int sum = valueAtFirstIndex + valueAtSecondIndex;
+            #if DEBUG
+            printf("%d: [GT%.2d] [LT%.2d] [O%.2d]: %.2d_tempValue = %d (%.2d_cache[%d])\n", __LINE__, globalThreadId, localThreadId, offset, groupId, cache[firstIndex], groupId, firstIndex);
+            #endif
 
-            // swap
-            cache[firstIndex] = valueAtSecondIndex;
-            cache[secondIndex] = sum;
+            const int  tempValue = cache[firstIndex];
 
             #if DEBUG
-            printf("%d: [GR%.2d] [GT%.2d] [LT%.2d] [D%.2d]: cache[%d] (%d) <- cache[%d] (%d) + cache[%d] (%d)\n", __LINE__, groupId, globalThreadId, localThreadId, depth, secondIndex, sum, firstIndex, valueAtFirstIndex, secondIndex, valueAtSecondIndex);
+            printf("%d: [GT%.2d] [LT%.2d] [O%.2d]: %.2d_cache[%d] = %d (%.2d_cache[%d])\n", __LINE__, globalThreadId, localThreadId, offset, groupId, firstIndex, cache[secondIndex], groupId, secondIndex);
             #endif
-        }
 
-        barrier(CLK_GLOBAL_MEM_FENCE);
+            cache[firstIndex] = cache[secondIndex];
+
+            #if DEBUG
+            printf("%d: [GT%.2d] [LT%.2d] [O%.2d]: %.2d_cache[%d] = %d (%.2d_cache[%d]) + %d (tempValue)\n", __LINE__, globalThreadId, localThreadId, offset, groupId, secondIndex, cache[secondIndex], groupId, secondIndex, tempValue);
+            #endif
+
+            cache[secondIndex] += tempValue;
+        }
     }
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
     const int firstIndexOfOutput = globalOffset + firstLocalThreadId;
     const int secondIndexOfOutput = globalOffset + secondLocalThreadId;
