@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 
 import com.github.thomaseizinger.oocl.CLCommandQueue;
 import com.github.thomaseizinger.oocl.CLContext;
@@ -45,6 +46,17 @@ public class OpenClScan {
 
     public int[] sum(int[] source) {
 
+        final int nextPowerOf2Length = 32 - Integer.numberOfLeadingZeros(source.length - 1);
+        final int desiredLength = (int) Math.pow(2, nextPowerOf2Length);
+
+        final int[] sourceCopy = Arrays.copyOf(source, desiredLength);
+
+        Arrays.fill(sourceCopy, source.length, desiredLength - 1, 0);
+
+        return sumInternal(sourceCopy);
+    }
+
+    private int[] sumInternal(int[] source) {
         int localSize = 512;
         int numberOfWorkGroups = 256;
 
@@ -63,7 +75,7 @@ public class OpenClScan {
                 final CLCommandQueue commandQueue = context.createCommandQueue();
 
                 scanSum.setArguments(inBuffer, resultBuffer, workGroupSumsBuffer);
-                CL.clSetKernelArg(scanSum.getKernel(), 3, localSize * Sizeof.cl_int, new Pointer());
+                CL.clSetKernelArg(scanSum.getKernel(), 3, localSize * 2 * Sizeof.cl_int, new Pointer());
 
                 commandQueue.execute(scanSum, 1, CLRange.of(numberOfWorkItems), CLRange.of(localSize));
 
@@ -77,7 +89,7 @@ public class OpenClScan {
                 try (CLKernel finalizeScan = context.createKernel(new File(kernelURI), "finalizeScan")) {
 
                     finalizeScan.setArguments(scannedWorkGroupMaxBuffer, resultBuffer);
-                    commandQueue.execute(finalizeScan, 1, CLRange.of(source.length + 1), CLRange.of(numberOfWorkItems / numberOfWorkGroups));
+                    commandQueue.execute(finalizeScan, 1, CLRange.of(numberOfWorkItems), CLRange.of(numberOfWorkItems / numberOfWorkGroups));
                 }
 
                 commandQueue.readBuffer(resultBuffer);

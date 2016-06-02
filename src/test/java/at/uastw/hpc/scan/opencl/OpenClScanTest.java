@@ -1,5 +1,6 @@
 package at.uastw.hpc.scan.opencl;
 
+import java.util.Arrays;
 import java.util.stream.IntStream;
 
 import org.jocl.CL;
@@ -22,12 +23,13 @@ public class OpenClScanTest {
     @Test
     public void openClSumScan() throws Exception {
 
-        final int[] source = IntStream.range(1, 512 * 256).toArray();
+        final int[] source = IntStream.range(1, 53).toArray();
         final int[] expected = new SequentialScan().sum(0, source);
 
         final int[] result = sut.sum(source);
 
+        final int[] trimmedResult = Arrays.stream(result).limit(source.length + 1).toArray();
 
-        Assert.assertArrayEquals(expected, result);
+        Assert.assertArrayEquals(expected, trimmedResult);
     }
 }
