@@ -25,8 +25,8 @@ public class OpenClScan {
     private final CLDevice device;
 
     private final URI kernelURI;
-    private static final int LOCAL_SIZE = 8;
-    private static final int NUMBER_OF_WORK_GROUPS = 2;
+    private static final int LOCAL_SIZE = 512;
+    private static final int NUMBER_OF_WORK_GROUPS = 256;
     private static final int NUMBER_OF_WORK_ITEMS = LOCAL_SIZE * NUMBER_OF_WORK_GROUPS;
 
     private OpenClScan(CLDevice device, URI kernelURI) {
@@ -53,17 +53,22 @@ public class OpenClScan {
         final int nextPowerOf2Length = 32 - Integer.numberOfLeadingZeros(source.length - 1);
         final int desiredLength = (int) Math.pow(2, nextPowerOf2Length);
 
-        final int[] sourceCopy = Arrays.copyOf(source, desiredLength);
+        if (desiredLength > source.length) {
+            final int[] sourceCopy = Arrays.copyOf(source, desiredLength);
+            Arrays.fill(sourceCopy, source.length, desiredLength - 1, 0);
 
-        Arrays.fill(sourceCopy, source.length, desiredLength - 1, 0);
-
-        return sumInternal(sourceCopy);
+            return sumInternal(sourceCopy);
+        } else {
+            return sumInternal(source);
+        }
     }
 
     private int[] sumInternal(int[] source) {
 
         final int[] result = new int[source.length + 1];
         final int[] workGroupSums = new int[LOCAL_SIZE];
+
+        final long start = System.nanoTime();
 
         try (CLContext context = device.createContext()) {
             try (CLKernel scanSum = context.createKernel(new File(kernelURI), "scanSum")) {
@@ -98,6 +103,10 @@ public class OpenClScan {
                 return resultBuffer.getData();
 
             }
+        } finally {
+            final long stop = System.nanoTime();
+
+            System.out.println(String.format("Execution time: %d µs", (stop - start) / 1000));
         }
     }
 

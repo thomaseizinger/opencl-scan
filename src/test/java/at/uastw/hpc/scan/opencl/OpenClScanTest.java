@@ -8,7 +8,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import at.uastw.hpc.scan.SequentialScan;
+import at.uastw.hpc.scan.JVMScan;
 
 public class OpenClScanTest {
 
@@ -24,7 +24,7 @@ public class OpenClScanTest {
     public void openClSumScan() throws Exception {
 
         final int[] source = IntStream.range(1, 13).toArray();
-        final int[] expected = new SequentialScan().sum(source);
+        final int[] expected = new JVMScan().sum(source);
 
         final int[] result = sut.sum(source);
 
