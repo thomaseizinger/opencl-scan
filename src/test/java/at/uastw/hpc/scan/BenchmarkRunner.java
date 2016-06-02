@@ -25,7 +25,7 @@ public class BenchmarkRunner {
         this.source = Files.lines(Paths.get(numbersLocation)).mapToInt(Integer::parseInt).toArray();
 
         jvmScan = new JVMScan();
-        openclScan = OpenClScan.create();
+        openclScan = OpenClScan.create(512, 256);
     }
 
     @Test

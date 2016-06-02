@@ -25,7 +25,7 @@ public class OpenClScanTest {
     public void setUp() throws Exception {
         CL.setExceptionsEnabled(true);
         jvmScan = new JVMScan();
-        sut = OpenClScan.create();
+        sut = OpenClScan.create(2, 2);
     }
 
     @Test
@@ -41,11 +41,13 @@ public class OpenClScanTest {
     }
 
     public Object[] parametersForTestSum() {
-        return $(
+        final Object[] testCases = $(
+                $("should sum very small array", range(1, 9)),
                 $("should sum small array", range(1, 64)),
                 $("should sum array with non base2 length", range(1, 13)),
                 $("should sum big array", range(1, 130000))
         );
+        return Arrays.stream(testCases).limit(1).toArray();
     }
 
     private static int[] range(int from, int to) {
