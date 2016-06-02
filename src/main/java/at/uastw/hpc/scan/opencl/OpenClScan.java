@@ -16,11 +16,15 @@ import com.github.thomaseizinger.oocl.CLMemory;
 import com.github.thomaseizinger.oocl.CLPlatform;
 import com.github.thomaseizinger.oocl.CLRange;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jocl.CL;
 import org.jocl.Pointer;
 import org.jocl.Sizeof;
 
 public class OpenClScan {
+
+    private static final Logger LOGGER = LogManager.getLogger(OpenClScan.class);
 
     private final CLDevice device;
 
@@ -74,8 +78,10 @@ public class OpenClScan {
             try (CLKernel scanSum = context.createKernel(new File(kernelURI), "scanSum")) {
 
                 final CLMemory<int[]> inBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, source);
-                final CLMemory<int[]> resultBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, result);
-                final CLMemory<int[]> workGroupSumsBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, workGroupSums);
+                final CLMemory<int[]> resultBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                        result);
+                final CLMemory<int[]> workGroupSumsBuffer = context.createBuffer(CL_MEM_READ_WRITE |
+                        CL_MEM_COPY_HOST_PTR, workGroupSums);
 
                 final CLCommandQueue commandQueue = context.createCommandQueue();
 
@@ -84,7 +90,8 @@ public class OpenClScan {
 
                 commandQueue.execute(scanSum, 1, CLRange.of(NUMBER_OF_WORK_ITEMS), CLRange.of(LOCAL_SIZE));
 
-                final CLMemory<int[]> scannedWorkGroupMaxBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, new int[NUMBER_OF_WORK_GROUPS]);
+                final CLMemory<int[]> scannedWorkGroupMaxBuffer = context.createBuffer(CL_MEM_READ_WRITE |
+                        CL_MEM_COPY_HOST_PTR, new int[NUMBER_OF_WORK_GROUPS]);
 
                 scanSum.setArguments(workGroupSumsBuffer, scannedWorkGroupMaxBuffer, workGroupSumsBuffer);
                 CL.clSetKernelArg(scanSum.getKernel(), 3, NUMBER_OF_WORK_GROUPS * Sizeof.cl_int, new Pointer());
@@ -94,7 +101,8 @@ public class OpenClScan {
                 try (CLKernel finalizeScan = context.createKernel(new File(kernelURI), "finalizeScan")) {
 
                     finalizeScan.setArguments(scannedWorkGroupMaxBuffer, resultBuffer);
-                    commandQueue.execute(finalizeScan, 1, CLRange.of(NUMBER_OF_WORK_ITEMS), CLRange.of(NUMBER_OF_WORK_ITEMS / NUMBER_OF_WORK_GROUPS));
+                    commandQueue.execute(finalizeScan, 1, CLRange.of(NUMBER_OF_WORK_ITEMS), CLRange.of
+                            (NUMBER_OF_WORK_ITEMS / NUMBER_OF_WORK_GROUPS));
                 }
 
                 commandQueue.readBuffer(resultBuffer);
@@ -104,9 +112,7 @@ public class OpenClScan {
 
             }
         } finally {
-            final long stop = System.nanoTime();
-
-            System.out.println(String.format("Execution time: %d µs", (stop - start) / 1000));
+            LOGGER.info("Execution time: {} µs", (System.nanoTime() - start) / 1000);
         }
     }
 
