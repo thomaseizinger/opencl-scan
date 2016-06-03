@@ -1,5 +1,9 @@
-#define DEBUG 0
-#define TRACE 0
+#define NUM_BANKS 16
+#define LOG_NUM_BANKS 4
+#define CONFLICT_FREE_OFFSET(n) ((n) >> NUM_BANKS + (n) >> (2 * LOG_NUM_BANKS))
+
+#define DEBUG 1
+#define TRACE 1
 
  __kernel void scanSum(__global int * input, __global int * output, __global int * workGroupSums, __local int * cache) {
 
@@ -11,20 +15,24 @@
     const int globalThreadId = get_global_id(0);
 
     const int localThreadId = get_local_id(0);
-    const int firstLocalThreadId = 2 * localThreadId;
-    const int secondLocalThreadId = 2 * localThreadId + 1;
+
+    const int firstLocalThreadId = localThreadId;
+    const int secondLocalThreadId = localThreadId + (n / 2);
+
+    const int firstLocalThreadIdBankOffset = CONFLICT_FREE_OFFSET(firstLocalThreadId);
+    const int secondLocalThreadIdBankOffset = CONFLICT_FREE_OFFSET(secondLocalThreadId);
 
     const int globalOffset = groupId * workGroupSize;
 
     int outIdx = 0, inIdx = 1;
 
-    cache[firstLocalThreadId] = input[globalOffset + firstLocalThreadId];
-    cache[secondLocalThreadId] = input[globalOffset + secondLocalThreadId];
+    cache[firstLocalThreadId + firstLocalThreadIdBankOffset] = input[globalOffset + firstLocalThreadId];
+    cache[secondLocalThreadId + secondLocalThreadIdBankOffset] = input[globalOffset + secondLocalThreadId];
     barrier(CLK_GLOBAL_MEM_FENCE);
 
     #if DEBUG
-    printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: cache[%d] = %d\n", __LINE__, groupId, globalThreadId, localThreadId, firstLocalThreadId, cache[firstLocalThreadId]);
-    printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: cache[%d] = %d\n", __LINE__, groupId, globalThreadId, localThreadId, secondLocalThreadId, cache[secondLocalThreadId]);
+    printf("%d: [GR%.2d] [LT%.2d]: cache[%d] = %d\n", __LINE__, groupId, localThreadId, firstLocalThreadId + firstLocalThreadIdBankOffset, cache[firstLocalThreadId + firstLocalThreadIdBankOffset]);
+    printf("%d: [GR%.2d] [LT%.2d]: cache[%d] = %d\n", __LINE__, groupId, localThreadId, secondLocalThreadId + secondLocalThreadIdBankOffset, cache[secondLocalThreadId + secondLocalThreadIdBankOffset]);
     #endif
 
     int offset = 1;
@@ -35,8 +43,11 @@
 
         if (localThreadId < depth) {
 
-            const int firstIndex = offset * ( firstLocalThreadId + 1 ) - 1;
-            const int secondIndex = offset * ( secondLocalThreadId + 1 ) - 1;
+            int firstIndex = offset * ( 2 * localThreadId + 1 ) - 1;
+            int secondIndex = offset * ( 2 * localThreadId + 1 + 1 ) - 1;
+
+            firstIndex += firstLocalThreadIdBankOffset;
+            secondIndex += secondLocalThreadIdBankOffset;
 
             const int valueAtFirstIndex = cache[firstIndex];
             const int valueAtSecondIndex = cache[secondIndex];
@@ -46,7 +57,7 @@
             cache[secondIndex] = sum;
 
             #if DEBUG
-            printf("%d: [GR%.2d] [GT%.2d] [LT%.2d] [D%.2d]: cache[%d] (%d) <- cache[%d] (%d) + cache[%d] (%d) \n", __LINE__, groupId, globalThreadId, localThreadId, depth, secondIndex, sum, firstIndex, valueAtFirstIndex, secondIndex, valueAtSecondIndex);
+            printf("%d: [GR%.2d] [LT%.2d] [D%.2d]: cache[%d] (%d) <- cache[%d] (%d) + cache[%d] (%d) \n", __LINE__, groupId, localThreadId, depth, secondIndex, sum, firstIndex, valueAtFirstIndex, secondIndex, valueAtSecondIndex);
             #endif
 
         }
@@ -64,8 +75,10 @@
     #endif
 
     if (lastThread) {
-        workGroupSums[groupId] = cache[n - 1];
-        cache[2 * localThreadId + 2] = cache[n - 1];
+
+        const int offset = CONFLICT_FREE_OFFSET(n - 1);
+
+        workGroupSums[groupId] = cache[n - 1 + offset];
 
         #if DEBUG
         printf("%d: [GR%.2d] [LT%.2d]: workGroupSums[%d] = %d\n", __LINE__, groupId, localThreadId, groupId, workGroupSums[groupId]);
@@ -74,11 +87,13 @@
 
     if (localThreadId == 0) {
 
+        const int offset = CONFLICT_FREE_OFFSET(n - 1);
+
         #if DEBUG
-        printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: cache[%d] = 0\n", __LINE__, groupId, globalThreadId, localThreadId, n - 1);
+        printf("%d: [GR%.2d] [LT%.2d]: cache[%d] = 0\n", __LINE__, groupId, localThreadId, n - 1 + offset);
         #endif
 
-        cache[n - 1] = 0;
+        cache[n - 1 + offset] = 0;
     }
 
     for (int depth = 1; depth < n; depth *= 2) {
@@ -87,23 +102,27 @@
         barrier(CLK_GLOBAL_MEM_FENCE);
 
         if (localThreadId < depth) {
-            const int firstIndex = offset * ( firstLocalThreadId + 1 ) - 1;
-            const int secondIndex = offset * ( secondLocalThreadId + 1 ) - 1;
+
+            int firstIndex = offset * ( 2 * localThreadId + 1 ) - 1;
+            int secondIndex = offset * ( 2 * localThreadId + 1 + 1 ) - 1;
+
+            firstIndex += firstLocalThreadIdBankOffset;
+            secondIndex += secondLocalThreadIdBankOffset;
 
             #if DEBUG
-            printf("%d: [GT%.2d] [LT%.2d] [O%.2d]: %.2d_tempValue = %d (%.2d_cache[%d])\n", __LINE__, globalThreadId, localThreadId, offset, groupId, cache[firstIndex], groupId, firstIndex);
+            printf("%d: [LT%.2d] [O%.2d]: %.2d_tempValue = %d (%.2d_cache[%d])\n", __LINE__, localThreadId, offset, groupId, cache[firstIndex], groupId, firstIndex);
             #endif
 
             const int  tempValue = cache[firstIndex];
 
             #if DEBUG
-            printf("%d: [GT%.2d] [LT%.2d] [O%.2d]: %.2d_cache[%d] = %d (%.2d_cache[%d])\n", __LINE__, globalThreadId, localThreadId, offset, groupId, firstIndex, cache[secondIndex], groupId, secondIndex);
+            printf("%d:  [LT%.2d] [O%.2d]: %.2d_cache[%d] = %d (%.2d_cache[%d])\n", __LINE__, localThreadId, offset, groupId, firstIndex, cache[secondIndex], groupId, secondIndex);
             #endif
 
             cache[firstIndex] = cache[secondIndex];
 
             #if DEBUG
-            printf("%d: [GT%.2d] [LT%.2d] [O%.2d]: %.2d_cache[%d] = %d (%.2d_cache[%d]) + %d (tempValue)\n", __LINE__, globalThreadId, localThreadId, offset, groupId, secondIndex, cache[secondIndex], groupId, secondIndex, tempValue);
+            printf("%d: [LT%.2d] [O%.2d]: %.2d_cache[%d] = %d (%.2d_cache[%d]) + %d (tempValue)\n", __LINE__, localThreadId, offset, groupId, secondIndex, cache[secondIndex], groupId, secondIndex, tempValue);
             #endif
 
             cache[secondIndex] += tempValue;
@@ -114,15 +133,15 @@
     const int firstIndexOfOutput = globalOffset + firstLocalThreadId;
     const int secondIndexOfOutput = globalOffset + secondLocalThreadId;
 
-    const int indexOfCacheValueToWriteToFirstIndexOfOutput = firstLocalThreadId + 1;
-    const int indexOfCacheValueToWriteToSecondIndexOfOutput = secondLocalThreadId + 1;
+    const int indexOfCacheValueToWriteToFirstIndexOfOutput = firstLocalThreadId + 1 + firstLocalThreadIdBankOffset;
+    const int indexOfCacheValueToWriteToSecondIndexOfOutput = secondLocalThreadId + 1 + secondLocalThreadIdBankOffset;
 
     const int cacheValueToWriteToFirstIndex = cache[indexOfCacheValueToWriteToFirstIndexOfOutput];
     const int cacheValueToWriteToSecondIndex = cache[indexOfCacheValueToWriteToSecondIndexOfOutput];
 
     #if DEBUG
-    printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: output[%d] = %d\n", __LINE__, groupId, globalThreadId, localThreadId, firstIndexOfOutput, cacheValueToWriteToFirstIndex);
-    printf("%d: [GR%.2d] [GT%.2d] [LT%.2d]: output[%d] = %d\n", __LINE__, groupId, globalThreadId, localThreadId, secondIndexOfOutput, cacheValueToWriteToSecondIndex);
+    printf("%d: [GR%.2d] [LT%.2d]: output[%d] = %d (cache[%d])\n", __LINE__, groupId, localThreadId, firstIndexOfOutput, cacheValueToWriteToFirstIndex, indexOfCacheValueToWriteToFirstIndexOfOutput);
+    printf("%d: [GR%.2d] [LT%.2d]: output[%d] = %d (cache[%d]\n", __LINE__, groupId, localThreadId, secondIndexOfOutput, cacheValueToWriteToSecondIndex, indexOfCacheValueToWriteToSecondIndexOfOutput);
     #endif
 
     output[firstIndexOfOutput] = cacheValueToWriteToFirstIndex;
