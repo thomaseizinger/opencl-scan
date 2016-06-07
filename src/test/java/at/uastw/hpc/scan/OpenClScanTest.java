@@ -11,8 +11,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import at.uastw.hpc.scan.JVMScan;
-import at.uastw.hpc.scan.OpenClScan;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 
@@ -26,7 +24,7 @@ public class OpenClScanTest {
     public void setUp() throws Exception {
         CL.setExceptionsEnabled(true);
         jvmScan = new JVMScan();
-        sut = OpenClScan.create(512, 1024);
+        sut = OpenClScan.create(512, 2);
     }
 
     @Test

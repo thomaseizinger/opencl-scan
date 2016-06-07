@@ -57,44 +57,55 @@ public class BasicOpenCLFilter {
     }
 
     public int[] filterGreaterThan(int[] source, int threshold) {
+        return filterInternal(source, threshold, "filterGreaterThan");
+    }
 
+    public int[] filterLessThan(int[] source, int threshold) {
+        return filterInternal(source, threshold, "filterLessThan");
+    }
+
+    public int[] filterEquals(int[] source, int candidate) {
+        return filterInternal(source, candidate, "filterEquals");
+    }
+
+    private int[] filterInternal(int[] source, int threshold, String kernelName) {
         int[] addresses = new int[source.length];
         int[] metadata = new int[] { threshold };
 
         final long start = System.nanoTime();
 
         try (CLContext context = device.createContext()) {
-            try (CLKernel filterGreaterThan = context.createKernel(new File(kernelURI), "filterGreaterThan")) {
+            try (CLKernel filterGreaterThan = context.createKernel(new File(kernelURI), kernelName)) {
+                try(final CLMemory<int[]> inBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, source);
+                    final CLMemory<int[]> addressBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, addresses);
+                    final CLMemory<int[]> metadataBuffer = context.createBuffer(CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, metadata)) {
 
-                final CLMemory<int[]> inBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, source);
-                final CLMemory<int[]> addressBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, addresses);
-                final CLMemory<int[]> metadataBuffer = context.createBuffer(CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, metadata);
+                    final CLCommandQueue commandQueue = context.createCommandQueue();
 
-                final CLCommandQueue commandQueue = context.createCommandQueue();
+                    filterGreaterThan.setArguments(inBuffer, addressBuffer, metadataBuffer);
 
-                filterGreaterThan.setArguments(inBuffer, addressBuffer, metadataBuffer);
+                    commandQueue.execute(filterGreaterThan, 1, CLRange.of(numberOfWorkItems), CLRange.of(localSize));
 
-                commandQueue.execute(filterGreaterThan, 1, CLRange.of(numberOfWorkItems), CLRange.of(localSize));
+                    commandQueue.readBuffer(addressBuffer);
 
-                commandQueue.readBuffer(addressBuffer);
+                    final int[] scannedAddresses = scan.sum(addressBuffer.getData());
 
-                final int[] scannedAddresses = scan.sum(addressBuffer.getData());
+                    LOGGER.info("Scanned addresses {}", Arrays.toString(scannedAddresses));
 
-                LOGGER.info("Scanned addresses {}", Arrays.toString(scannedAddresses));
+                    int[] output = new int[source.length];
 
-                int[] output = new int[source.length];
+                    try (final CLKernel applyFilter = context.createKernel(new File(kernelURI), "applyFilter");
+                         final CLMemory<int[]> outBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, output);
+                         final CLMemory<int[]> scannedAddressBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, scannedAddresses)) {
 
-                try (final CLKernel applyFilter = context.createKernel(new File(kernelURI), "applyFilter")) {
-                    final CLMemory<int[]> outBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, output);
-                    final CLMemory<int[]> scannedAddressBuffer = context.createBuffer(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, scannedAddresses);
+                        applyFilter.setArguments(inBuffer, outBuffer, scannedAddressBuffer);
 
-                    applyFilter.setArguments(inBuffer, outBuffer, scannedAddressBuffer);
+                        commandQueue.execute(applyFilter, 1, CLRange.of(numberOfWorkItems), CLRange.of(localSize));
+                        commandQueue.readBuffer(outBuffer);
+                        commandQueue.finish();
 
-                    commandQueue.execute(applyFilter, 1, CLRange.of(numberOfWorkItems), CLRange.of(localSize));
-                    commandQueue.readBuffer(outBuffer);
-                    commandQueue.finish();
-
-                    return outBuffer.getData();
+                        return outBuffer.getData();
+                    }
                 }
             }
         } finally {
