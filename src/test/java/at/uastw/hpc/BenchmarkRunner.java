@@ -1,4 +1,4 @@
-package at.uastw.hpc.scan;
+package at.uastw.hpc;
 
 import java.util.Random;
 import java.util.stream.IntStream;
@@ -8,6 +8,8 @@ import org.junit.Test;
 
 import at.uastw.hpc.filter.BasicJvmFilter;
 import at.uastw.hpc.filter.BasicOpenCLFilter;
+import at.uastw.hpc.scan.JVMScan;
+import at.uastw.hpc.scan.OpenClScan;
 
 /**
  * @author Thomas Eizinger, Senacor Technologies AG.
