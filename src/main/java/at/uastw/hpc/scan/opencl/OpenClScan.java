@@ -72,7 +72,7 @@ public class OpenClScan {
 
     private int[] sumInternal(int[] source) {
 
-        final int[] result = new int[source.length + 1];
+        final int[] result = new int[source.length];
         final int[] workGroupSums = new int[localSize];
 
         final long start = System.nanoTime();

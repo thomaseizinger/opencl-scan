@@ -3,10 +3,14 @@ package at.uastw.hpc.scan;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Random;
+import java.util.stream.IntStream;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import at.uastw.hpc.filter.BasicJvmFilter;
+import at.uastw.hpc.filter.opencl.BasicOpenCLFilter;
 import at.uastw.hpc.scan.opencl.OpenClScan;
 
 /**
@@ -18,14 +22,18 @@ public class BenchmarkRunner {
 
     private JVMScan jvmScan;
     private OpenClScan openclScan;
+    private BasicJvmFilter basicJvmFilter;
+    private BasicOpenCLFilter basicOpenCLFilter;
 
     @Before
     public void setUp() throws Exception {
-        final URI numbersLocation = BenchmarkRunner.class.getResource("/numbers").toURI();
-        this.source = Files.lines(Paths.get(numbersLocation)).mapToInt(Integer::parseInt).toArray();
+        this.source = randomElements(512 * 2);
 
         jvmScan = new JVMScan();
-        openclScan = OpenClScan.create(512, 256);
+        openclScan = OpenClScan.create(512, 2);
+
+        basicJvmFilter = new BasicJvmFilter();
+        basicOpenCLFilter = BasicOpenCLFilter.create(512, 2);
     }
 
     @Test
@@ -40,5 +48,26 @@ public class BenchmarkRunner {
         for (int i = 0; i < 10; i++) {
             openclScan.sum(source);
         }
+    }
+
+    @Test
+    public void benchmarkJVMFilter() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            basicJvmFilter.filterGreaterThan(source, 812);
+        }
+    }
+
+    @Test
+    public void benchmarkOpenCLFilter() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            basicOpenCLFilter.filterGreaterThan(source, 812);
+        }
+    }
+
+    private static int[] randomElements(int numberOfElements) {
+
+        final Random rnd = new Random();
+
+        return IntStream.generate( () -> rnd.nextInt(1000) ).limit(numberOfElements).toArray();
     }
 }
