@@ -1,4 +1,4 @@
-package at.uastw.hpc.scan.opencl;
+package at.uastw.hpc.scan;
 
 import static org.jocl.CL.CL_MEM_COPY_HOST_PTR;
 import static org.jocl.CL.CL_MEM_READ_WRITE;

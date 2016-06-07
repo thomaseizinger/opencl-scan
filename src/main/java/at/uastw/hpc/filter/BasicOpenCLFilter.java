@@ -1,4 +1,4 @@
-package at.uastw.hpc.filter.opencl;
+package at.uastw.hpc.filter;
 
 import static org.jocl.CL.CL_MEM_COPY_HOST_PTR;
 import static org.jocl.CL.CL_MEM_READ_ONLY;
@@ -20,7 +20,7 @@ import com.github.thomaseizinger.oocl.CLRange;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import at.uastw.hpc.scan.opencl.OpenClScan;
+import at.uastw.hpc.scan.OpenClScan;
 
 /**
  * @author Thomas Eizinger, Senacor Technologies AG.

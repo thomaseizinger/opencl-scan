@@ -1,8 +1,5 @@
 package at.uastw.hpc.scan;
 
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Random;
 import java.util.stream.IntStream;
 
@@ -10,8 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import at.uastw.hpc.filter.BasicJvmFilter;
-import at.uastw.hpc.filter.opencl.BasicOpenCLFilter;
-import at.uastw.hpc.scan.opencl.OpenClScan;
+import at.uastw.hpc.filter.BasicOpenCLFilter;
 
 /**
  * @author Thomas Eizinger, Senacor Technologies AG.

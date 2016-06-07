@@ -1,4 +1,4 @@
-package at.uastw.hpc.scan.opencl;
+package at.uastw.hpc.scan;
 
 import static junitparams.JUnitParamsRunner.$;
 
@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import at.uastw.hpc.scan.JVMScan;
+import at.uastw.hpc.scan.OpenClScan;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 

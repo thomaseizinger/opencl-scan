@@ -1,4 +1,4 @@
-package at.uastw.hpc.filter.opencl;
+package at.uastw.hpc.filter;
 
 import static junitparams.JUnitParamsRunner.$;
 
@@ -13,7 +13,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import at.uastw.hpc.filter.BasicJvmFilter;
-import at.uastw.hpc.filter.opencl.BasicOpenCLFilter;
+import at.uastw.hpc.filter.BasicOpenCLFilter;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
 
